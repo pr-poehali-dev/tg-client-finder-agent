@@ -1,0 +1,34 @@
+{
+  "tests": [
+    {
+      "name": "Get statistics",
+      "method": "GET",
+      "path": "/?action=stats",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "total_contacts": 1,
+        "new_this_week": 1,
+        "by_source": {},
+        "by_status": {}
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Add contact manually",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "add_contact",
+        "full_name": "Тестовый Контакт",
+        "phone": "+79991234567",
+        "source": "manual",
+        "city": "Челябинск"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
