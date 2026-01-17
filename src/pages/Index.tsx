@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -22,8 +22,75 @@ const mockCampaigns = [
   { id: 3, name: 'Мартовская кампания', sent: 520, opened: 410, converted: 62, rate: '12%' },
 ];
 
+const API_URL = 'https://functions.poehali.dev/7751168f-314c-4411-91eb-04dc875bcd17';
+
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [realContacts, setRealContacts] = useState([]);
+  const [stats, setStats] = useState({ total_contacts: 0, new_this_week: 0, by_source: {}, by_status: {} });
+  const [isParsingAvito, setIsParsingAvito] = useState(false);
+  const [isParsingCian, setIsParsingCian] = useState(false);
+  const [isParsingTelegram, setIsParsingTelegram] = useState(false);
+  const [parserMessage, setParserMessage] = useState('');
+
+  useEffect(() => {
+    loadStatistics();
+    loadContacts();
+  }, []);
+
+  const loadStatistics = async () => {
+    try {
+      const response = await fetch(`${API_URL}?action=stats`);
+      const data = await response.json();
+      setStats(data);
+    } catch (error) {
+      console.error('Failed to load statistics:', error);
+    }
+  };
+
+  const loadContacts = async () => {
+    try {
+      const response = await fetch(`${API_URL}?action=contacts&limit=100`);
+      const data = await response.json();
+      setRealContacts(data.contacts || []);
+    } catch (error) {
+      console.error('Failed to load contacts:', error);
+    }
+  };
+
+  const runParser = async (platform: string) => {
+    if (platform === 'avito') setIsParsingAvito(true);
+    if (platform === 'cian') setIsParsingCian(true);
+    if (platform === 'telegram') setIsParsingTelegram(true);
+    setParserMessage('');
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'parse', platform, city: 'Челябинск' })
+      });
+      const data = await response.json();
+      setParserMessage(`✅ Найдено ${data.contacts_added} новых контактов с ${platform}`);
+      await loadStatistics();
+      await loadContacts();
+    } catch (error) {
+      setParserMessage(`❌ Ошибка парсинга ${platform}`);
+    } finally {
+      if (platform === 'avito') setIsParsingAvito(false);
+      if (platform === 'cian') setIsParsingCian(false);
+      if (platform === 'telegram') setIsParsingTelegram(false);
+    }
+  };
+
+  const displayContacts = realContacts.length > 0 ? realContacts.map(c => ({
+    id: c.id,
+    name: c.full_name || c.username || 'Неизвестно',
+    username: c.username || '-',
+    city: c.city || 'Челябинск',
+    activity: c.activity_level || 'Средняя',
+    status: c.status || 'Новый'
+  })) : mockContacts;
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -99,7 +166,7 @@ const Index = () => {
               <Card>
                 <CardHeader className="pb-3">
                   <CardDescription>Всего контактов</CardDescription>
-                  <CardTitle className="text-4xl">1,284</CardTitle>
+                  <CardTitle className="text-4xl">{stats.total_contacts}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2 text-sm">
@@ -147,7 +214,7 @@ const Index = () => {
               <Card>
                 <CardHeader className="pb-3">
                   <CardDescription>Новые за неделю</CardDescription>
-                  <CardTitle className="text-4xl">142</CardTitle>
+                  <CardTitle className="text-4xl">{stats.new_this_week}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2 text-sm">
@@ -169,7 +236,7 @@ const Index = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {mockContacts.slice(0, 5).map((contact) => (
+                    {displayContacts.slice(0, 5).map((contact) => (
                       <div key={contact.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
@@ -228,6 +295,61 @@ const Index = () => {
 
             <Card>
               <CardHeader>
+                <CardTitle>Автоматический парсинг</CardTitle>
+                <CardDescription>Запустите сбор контактов с площадок Челябинска</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Button 
+                    onClick={() => runParser('avito')} 
+                    disabled={isParsingAvito}
+                    className="gap-2 h-20 flex-col"
+                  >
+                    {isParsingAvito ? (
+                      <Icon name="Loader2" size={24} className="animate-spin" />
+                    ) : (
+                      <Icon name="ShoppingBag" size={24} />
+                    )}
+                    <span>{isParsingAvito ? 'Парсим...' : 'Avito'}</span>
+                  </Button>
+
+                  <Button 
+                    onClick={() => runParser('cian')} 
+                    disabled={isParsingCian}
+                    className="gap-2 h-20 flex-col"
+                  >
+                    {isParsingCian ? (
+                      <Icon name="Loader2" size={24} className="animate-spin" />
+                    ) : (
+                      <Icon name="Home" size={24} />
+                    )}
+                    <span>{isParsingCian ? 'Парсим...' : 'Циан / ДомКлик'}</span>
+                  </Button>
+
+                  <Button 
+                    onClick={() => runParser('telegram')} 
+                    disabled={isParsingTelegram}
+                    className="gap-2 h-20 flex-col"
+                  >
+                    {isParsingTelegram ? (
+                      <Icon name="Loader2" size={24} className="animate-spin" />
+                    ) : (
+                      <Icon name="MessageCircle" size={24} />
+                    )}
+                    <span>{isParsingTelegram ? 'Парсим...' : 'Telegram ЖК'}</span>
+                  </Button>
+                </div>
+
+                {parserMessage && (
+                  <div className="mt-4 p-3 bg-muted rounded-lg text-sm">
+                    {parserMessage}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle>Фильтры поиска</CardTitle>
               </CardHeader>
               <CardContent>
@@ -274,7 +396,7 @@ const Index = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Найдено контактов: {mockContacts.length}</CardTitle>
+                <CardTitle>Найдено контактов: {displayContacts.length}</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -289,7 +411,7 @@ const Index = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mockContacts.map((contact) => (
+                    {displayContacts.map((contact) => (
                       <TableRow key={contact.id}>
                         <TableCell className="font-medium">{contact.name}</TableCell>
                         <TableCell className="text-muted-foreground">{contact.username}</TableCell>
