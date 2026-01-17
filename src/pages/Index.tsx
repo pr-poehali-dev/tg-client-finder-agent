@@ -242,6 +242,7 @@ const Index = () => {
                       <SelectItem value="moscow">Москва</SelectItem>
                       <SelectItem value="spb">Санкт-Петербург</SelectItem>
                       <SelectItem value="ekb">Екатеринбург</SelectItem>
+                      <SelectItem value="chel">Челябинск</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -388,7 +389,8 @@ const Index = () => {
                     { city: 'Москва', count: 742, percent: 57.8 },
                     { city: 'Санкт-Петербург', count: 318, percent: 24.8 },
                     { city: 'Екатеринбург', count: 142, percent: 11.1 },
-                    { city: 'Казань', count: 82, percent: 6.3 },
+                    { city: 'Челябинск', count: 58, percent: 4.5 },
+                    { city: 'Казань', count: 24, percent: 1.8 },
                   ].map((item, idx) => (
                     <div key={idx}>
                       <div className="flex justify-between text-sm mb-2">
